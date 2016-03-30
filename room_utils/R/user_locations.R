@@ -19,8 +19,8 @@ user_location <- function(user_ids) {
   users <- paste(sapply(user_ids, as.numeric), collapse = "%3B")
   p2 <- "?order=desc&sort=reputation&site=stackoverflow"
   p3 <- "&filter=!G*klMr_BAt*6rRQ*_i7*TeZrrN"
-  x <- GET(sprintf("%s%s%s%s", p1, users, p2, p3))
-  fromJSON(rawToChar(x$content))$items
+  x <- httr::GET(sprintf("%s%s%s%s", p1, users, p2, p3))
+  jsonlite::fromJSON(rawToChar(x$content))$items
 }
 NULL
 
@@ -44,14 +44,14 @@ NULL
 user_list <- function(room_id = "25312") {
   temp <- url_stub(room_id)
   users <- temp %>% 
-    read_html %>% 
-    html_node('#room-usercards-container') %>%
-    html_nodes('h3') %>%
-    html_nodes('a') %>%
-    html_attr("href")
+    xml2::read_html() %>% 
+    rvest::html_node('#room-usercards-container') %>%
+    rvest::html_nodes('h3') %>%
+    rvest::html_nodes('a') %>%
+    rvest::html_attr("href")
   users <- sapply(strsplit(gsub("^/", "", users), "/", TRUE), `[[`, 2)
   locs <- setDT(user_location(users))
-  locs[!is.na(location), c("lon", "lat") := geocode(location)][]
+  locs[!is.na(location), c("lon", "lat") := ggmap::geocode(location)][]
 }
 NULL
 
@@ -74,20 +74,22 @@ NULL
 #' plot_current_users(type = "rworldmap")
 #' plot_current_users("106")
 #' 
+#' @importFrom dplyr filter
 #' @export
 plot_current_users <- function(room_id = "25312", type = "leaflet") {
-  user_df <- user_list(room_id)
+  user_df <- user_list(room_id) %>%
+    dplyr::filter(!is.na(lat) & !is.na(lon))
   switch(
     type,
     leaflet = {
-      leaflet(user_df) %>%
-        addProviderTiles('CartoDB.PositronNoLabels') %>%
-        addMarkers(popup = sprintf(
+      leaflet::leaflet(user_df) %>%
+        leaflet::addProviderTiles('CartoDB.PositronNoLabels') %>%
+        leaflet::addMarkers(popup = sprintf(
           "User: %s<br />Reputation: %s",
           user_df$display_name, user_df$reputation))
       },
     rworldmap = {
-      newmap <- getMap(resolution = "low")
+      newmap <- rworldmap::getMap(resolution = "low")
       plot(newmap)
       points(user_df$lon, user_df$lat, col = 'red', cex = 2, pch = 21)
       },
