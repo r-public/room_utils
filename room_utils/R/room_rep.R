@@ -15,11 +15,11 @@
 #' @export
 room_rep <- function(room_id = "25312") {
   url_stub(room_id) %>%
-    read_html %>% 
-    html_node('#room-usercards-container') %>% 
-    html_nodes('.reputation-score') %>% 
-    html_attr('title') %>% 
-    as.integer %>% 
-    sum
+    xml2::read_html() %>% 
+    rvest::html_node('#room-usercards-container') %>% 
+    rvest::html_nodes('.reputation-score') %>% 
+    rvest::html_attr('title') %>% 
+    as.integer() %>% 
+    sum()
 }
 NULL

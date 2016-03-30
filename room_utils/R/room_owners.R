@@ -15,9 +15,9 @@
 #' @export
 room_owners <- function(room_id = "25312") {
   url_stub(room_id) %>% 
-    read_html %>% 
-    html_node('#room-ownercards') %>% 
-    html_nodes('h3') %>%
-    html_text(trim = TRUE)
+    xml2::read_html() %>% 
+    rvest::html_node('#room-ownercards') %>% 
+    rvest::html_nodes('h3') %>%
+    rvest::html_text(trim = TRUE)
 }
 NULL
