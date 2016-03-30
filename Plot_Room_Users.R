@@ -1,20 +1,40 @@
-library(rworldmap)
-library(ggmap)
 library(rvest)
+library(ggmap)
+library(leaflet)
+library(rworldmap)
 
 get_location <- function(rel_url){
-  user_page <- paste0('http://www.stackoverflow.com/',rel_url,'?tab=profile')
-  return(user_page %>% read_html() %>% html_nodes('.user-links') %>% html_nodes(xpath = "//span[@class='icon-location']/..") %>% html_text(trim = TRUE))
+    user_page <- paste0('http://www.stackoverflow.com/',rel_url,'?tab=profile')
+    user_page %>% read_html() %>% html_nodes('.user-links') %>% 
+        html_nodes(xpath = "//span[@class='icon-location']/..") %>% html_text(trim = TRUE)
 }
 
-room_page <- "http://chat.stackoverflow.com/rooms/info/25312/r-public"
-room_users <- room_page %>% read_html() %>% html_node('#room-usercards-container') %>% html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+update_user_info <- function(){
+    room_page <- "http://chat.stackoverflow.com/rooms/info/25312/r-public"
+    room_users <<- room_page %>% read_html() %>% html_node('#room-usercards-container') %>% 
+        html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+    
+    room_owners <<- room_page %>% read_html() %>% html_node('#room-ownercards') %>% 
+        html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+    
+    user_df <<- data.frame(user = sub('.*/([^/]+)$', '\\1', room_users), 
+                          location = as.character(lapply(room_users, get_location)),
+                          stringsAsFactors = FALSE)
+    user_df[user_df$location == 'character(0)', 'location'] <<- NA
+    
+    user_df <<- merge(user_df, data.frame(location = user_df$location[!is.na(user_df$location)], 
+                                         geocode(user_df$location[!is.na(user_df$location)])), 
+                     all = TRUE)
+}
 
-room_owners <- room_page %>% read_html() %>% html_node('#room-ownercards') %>% html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+plot_current_users <- function(){
+    update_user_info()
+    leaflet(user_df) %>% addProviderTiles('CartoDB.PositronNoLabels') %>% 
+        addMarkers(popup = paste0('<strong>User: </strong>', user_df$user))
+}
 
-list_of_loc_names <- as.character(lapply(room_users,get_location))
-list_of_gcodes <- t(sapply(list_of_loc_names[list_of_loc_names!="character(0)"],geocode))
-final <- as.data.frame(list_of_gcodes)
-newmap <- getMap(resolution = "low")
-plot(newmap)
-points(final$lon,final$lat,col='red',cex=2,pch=21)
+plot_using_rworldmap <- function(){
+    newmap <- getMap(resolution = "low")
+    plot(newmap)
+    points(user_df$lon, user_df$lat, col = 'red', cex=2, pch=21)
+}
