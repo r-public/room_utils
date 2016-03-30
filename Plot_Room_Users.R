@@ -8,22 +8,26 @@ get_location <- function(rel_url){
         html_nodes(xpath = "//span[@class='icon-location']/..") %>% html_text(trim = TRUE)
 }
 
-room_page <- "http://chat.stackoverflow.com/rooms/info/25312/r-public"
-room_users <- room_page %>% read_html() %>% html_node('#room-usercards-container') %>% 
-    html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+update_user_info <- function(){
+    room_page <- "http://chat.stackoverflow.com/rooms/info/25312/r-public"
+    room_users <<- room_page %>% read_html() %>% html_node('#room-usercards-container') %>% 
+        html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+    
+    room_owners <<- room_page %>% read_html() %>% html_node('#room-ownercards') %>% 
+        html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
+    
+    user_df <<- data.frame(user = sub('.*/([^/]+)$', '\\1', room_users), 
+                          location = as.character(lapply(room_users, get_location)),
+                          stringsAsFactors = FALSE)
+    user_df[user_df$location == 'character(0)', 'location'] <<- NA
+    
+    user_df <<- merge(user_df, data.frame(location = user_df$location[!is.na(user_df$location)], 
+                                         geocode(user_df$location[!is.na(user_df$location)])), 
+                     all = TRUE)
+}
 
-room_owners <- room_page %>% read_html() %>% html_node('#room-ownercards') %>% 
-    html_nodes('h3') %>%  html_nodes('a') %>% html_attr("href")
-
-user_df <- data.frame(user = sub('.*/([^/]+)$', '\\1', room_users), 
-                      location = as.character(lapply(room_users, get_location)),
-                      stringsAsFactors = FALSE)
-user_df[user_df$location == 'character(0)', 'location'] <- NA
-
-user_df <- merge(user_df, data.frame(location = user_df$location[!is.na(user_df$location)], 
-                                     geocode(user_df$location[!is.na(user_df$location)])), 
-                 all = TRUE)
-
-leaflet(user_df) %>% addProviderTiles('CartoDB.PositronNoLabels') %>% 
-    addMarkers(popup = paste0('<strong>User: </strong>', user_df$user))
-
+plot_current_users <- function(){
+    update_user_info()
+    leaflet(user_df) %>% addProviderTiles('CartoDB.PositronNoLabels') %>% 
+        addMarkers(popup = paste0('<strong>User: </strong>', user_df$user))
+}
