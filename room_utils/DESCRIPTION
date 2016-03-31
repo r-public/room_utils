@@ -13,3 +13,4 @@ Imports: rvest,
   ggmap,
   leaflet,
   rworldmap
+Suggests: dplyr

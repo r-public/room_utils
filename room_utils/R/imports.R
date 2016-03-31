@@ -1,4 +1,7 @@
-#' @import rvest ggmap leaflet rworldmap httr readr jsonlite data.table
+#' @import rvest ggmap leaflet rworldmap httr jsonlite data.table
+NULL
+
+#' @importFrom dplyr filter
 NULL
 
 ### UTILS
